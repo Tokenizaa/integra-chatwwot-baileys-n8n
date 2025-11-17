@@ -1,0 +1,118 @@
+services:
+  # Serviço do Chatwoot
+  - type: web
+    name: chatwoot
+    env: docker
+    plan: standard
+    dockerCommand: sh -c "bundle exec rails s -p 3000 -b 0.0.0.0"
+    image: chatwoot/chatwoot:latest
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SECRET_KEY_BASE
+        sync: false
+      - key: POSTGRES_HOST
+        value: db
+      - key: POSTGRES_USERNAME
+        value: postgres
+      - key: POSTGRES_PASSWORD
+        sync: false
+      - key: POSTGRES_DATABASE
+        value: chatwoot
+      - key: REDIS_URL
+        value: redis://redis:6379
+      - key: FRONTEND_URL
+        value: https://chatwoot-${RENDER_SERVICE_NAME}.onrender.com
+      - key: BACKEND_URL
+        value: https://chatwoot-${RENDER_SERVICE_NAME}.onrender.com
+    healthCheckPath: /health
+    autoDeploy: false
+
+  # Serviço do n8n
+  - type: web
+    name: n8n
+    env: docker
+    plan: standard
+    image: n8nio/n8n:latest
+    envVars:
+      - key: N8N_BASIC_AUTH_ACTIVE
+        value: "true"
+      - key: N8N_BASIC_AUTH_USER
+        value: admin
+      - key: N8N_BASIC_AUTH_PASSWORD
+        sync: false
+      - key: N8N_HOST
+        value: n8n-${RENDER_SERVICE_NAME}.onrender.com
+      - key: N8N_PORT
+        value: "5678"
+      - key: N8N_PROTOCOL
+        value: https
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /
+    autoDeploy: false
+
+  # Serviço do Baileys
+  - type: web
+    name: baileys
+    env: docker
+    plan: standard
+    dockerfilePath: ./baileys/Dockerfile
+    dockerContext: ./baileys
+    envVars:
+      - key: CHATWOOT_URL
+        value: https://chatwoot-${RENDER_SERVICE_NAME}.onrender.com
+      - key: WEBHOOK_URL
+        value: https://n8n-${RENDER_SERVICE_NAME}.onrender.com/webhook/wa
+      - key: SESSION_PATH
+        value: /sessions
+    autoDeploy: false
+
+  # Serviço do Rails (parte do Chatwoot)
+  - type: web
+    name: chatwoot-rails
+    env: docker
+    plan: standard
+    image: chatwoot/chatwoot:latest
+    dockerCommand: bin/rails server
+    envVars:
+      - key: RAILS_ENV
+        value: production
+    autoDeploy: false
+
+  # Serviço do Sidekiq (parte do Chatwoot)
+  - type: worker
+    name: chatwoot-sidekiq
+    env: docker
+    plan: standard
+    image: chatwoot/chatwoot:latest
+    dockerCommand: bundle exec sidekiq
+    envVars:
+      - key: RAILS_ENV
+        value: production
+      - key: REDIS_URL
+        value: redis://redis:6379
+    autoDeploy: false
+
+databases:
+  # Banco de dados PostgreSQL
+  - name: chatwoot-db
+    databaseName: chatwoot
+    user: postgres
+    plan: standard
+    postgresMajorVersion: 15
+
+  # Banco de dados Redis
+  - name: redis
+    plan: standard
+    ipAllowList: []
+
+envVarGroups:
+  - name: chatwoot-env
+    envVars:
+      - key: POSTGRES_DB
+        value: chatwoot
+      - key: POSTGRES_USER
+        value: postgres
+      - key: POSTGRES_PASSWORD
+        sync: false
