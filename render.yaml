@@ -6,7 +6,8 @@ services:
     name: chatwoot
     env: docker
     plan: standard
-    image: chatwoot/chatwoot:latest
+    image:
+      name: chatwoot/chatwoot:latest
     dockerCommand: sh -c "bundle exec rails db:chatwoot_prepare && bundle exec rails s -p 3000 -b 0.0.0.0"
     envVars:
       - key: NODE_ENV
@@ -22,7 +23,7 @@ services:
       - key: POSTGRES_USERNAME
         value: ${POSTGRES_USER}
       - key: POSTGRES_PASSWORD
-        value: ${POSTRES_PASSWORD}
+        value: ${POSTGRES_PASSWORD}
       - key: POSTGRES_DATABASE
         value: ${POSTGRES_DB}
 
@@ -67,7 +68,8 @@ services:
     name: n8n
     env: docker
     plan: standard
-    image: n8nio/n8n:latest
+    image:
+      name: n8nio/n8n:latest
     envVars:
       - key: N8N_BASIC_AUTH_ACTIVE
         value: "true"
