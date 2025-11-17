@@ -1,5 +1,7 @@
 services:
-  # Serviço do Chatwoot
+  # -------------------------
+  # Chatwoot
+  # -------------------------
   - type: web
     name: chatwoot
     env: docker
@@ -11,30 +13,46 @@ services:
         value: production
       - key: SECRET_KEY_BASE
         sync: false
+
+      # Conexão com Supabase (PostgreSQL externo)
       - key: POSTGRES_HOST
-        fromDatabase:
-          name: chatwoot-db
-          property: host
+        value: ${POSTGRES_HOST}
+      - key: POSTGRES_PORT
+        value: ${POSTGRES_PORT}
       - key: POSTGRES_USERNAME
-        fromDatabase:
-          name: chatwoot-db
-          property: user
+        value: ${POSTGRES_USER}
       - key: POSTGRES_PASSWORD
-        fromDatabase:
-          name: chatwoot-db
-          property: password
+        value: ${POSTGRES_PASSWORD}
       - key: POSTGRES_DATABASE
-        fromDatabase:
-          name: chatwoot-db
-          property: database
+        value: ${POSTGRES_DB}
+
+      # Redis (Render managed)
       - key: REDIS_URL
         fromDatabase:
           name: redis
           property: connectionString
+
+      # URLs públicas
       - key: FRONTEND_URL
-        value: https://chatwoot-${RENDER_SERVICE_NAME}.onrender.com
+        value: ${CHATWOOT_FRONTEND_URL}
       - key: BACKEND_URL
-        value: https://chatwoot-${RENDER_SERVICE_NAME}.onrender.com
+        value: ${CHATWOOT_BACKEND_URL}
+
+      # SMTP
+      - key: SMTP_ADDRESS
+        value: ${SMTP_ADDRESS}
+      - key: SMTP_PORT
+        value: ${SMTP_PORT}
+      - key: SMTP_USERNAME
+        value: ${SMTP_USERNAME}
+      - key: SMTP_PASSWORD
+        value: ${SMTP_PASSWORD}
+      - key: SMTP_DOMAIN
+        value: ${SMTP_DOMAIN}
+
+      # Webhook n8n
+      - key: WEBHOOK_PROXY_URL
+        value: ${N8N_WEBHOOK_URL}
     healthCheckPath: /health
     autoDeploy: false
     disk:
@@ -42,7 +60,9 @@ services:
       mountPath: /app/storage
       sizeGB: 10
 
-  # Serviço do n8n
+  # -------------------------
+  # n8n
+  # -------------------------
   - type: web
     name: n8n
     env: docker
@@ -52,9 +72,9 @@ services:
       - key: N8N_BASIC_AUTH_ACTIVE
         value: "true"
       - key: N8N_BASIC_AUTH_USER
-        value: admin
+        value: ${N8N_USER}
       - key: N8N_BASIC_AUTH_PASSWORD
-        sync: false
+        value: ${N8N_PASS}
       - key: N8N_HOST
         value: n8n-${RENDER_SERVICE_NAME}.onrender.com
       - key: N8N_PORT
@@ -66,21 +86,17 @@ services:
       - key: DB_TYPE
         value: postgresdb
       - key: DB_POSTGRESDB_HOST
-        fromDatabase:
-          name: chatwoot-db
-          property: host
+        value: ${POSTGRES_HOST}
+      - key: DB_POSTGRESDB_PORT
+        value: ${POSTGRES_PORT}
       - key: DB_POSTGRESDB_USER
-        fromDatabase:
-          name: chatwoot-db
-          property: user
+        value: ${POSTGRES_USER}
       - key: DB_POSTGRESDB_PASSWORD
-        fromDatabase:
-          name: chatwoot-db
-          property: password
+        value: ${POSTGRES_PASSWORD}
       - key: DB_POSTGRESDB_DATABASE
-        fromDatabase:
-          name: chatwoot-db
-          property: database
+        value: ${POSTGRES_DB}
+      - key: N8N_WEBHOOK_URL
+        value: ${N8N_WEBHOOK_URL}
     healthCheckPath: /
     autoDeploy: false
     disk:
@@ -88,7 +104,9 @@ services:
       mountPath: /home/node/.n8n
       sizeGB: 5
 
-  # Serviço do Baileys
+  # -------------------------
+  # Baileys
+  # -------------------------
   - type: web
     name: baileys
     env: docker
@@ -97,9 +115,11 @@ services:
     dockerContext: ./baileys
     envVars:
       - key: CHATWOOT_URL
-        value: https://chatwoot-${RENDER_SERVICE_NAME}.onrender.com
+        value: ${CHATWOOT_BACKEND_URL}
+      - key: CHATWOOT_TOKEN
+        sync: false
       - key: WEBHOOK_URL
-        value: https://n8n-${RENDER_SERVICE_NAME}.onrender.com/webhook/wa
+        value: ${N8N_WEBHOOK_URL}
       - key: SESSION_PATH
         value: /sessions
     autoDeploy: false
@@ -109,24 +129,9 @@ services:
       sizeGB: 1
 
 databases:
-  # Banco de dados PostgreSQL
-  - name: chatwoot-db
-    databaseName: chatwoot
-    user: postgres
-    plan: standard
-    postgresMajorVersion: 15
-
-  # Banco de dados Redis
+  # -------------------------
+  # Redis gerenciado pelo Render
+  # -------------------------
   - name: redis
     plan: standard
     ipAllowList: []
-
-envVarGroups:
-  - name: chatwoot-env
-    envVars:
-      - key: POSTGRES_DB
-        value: chatwoot
-      - key: POSTGRES_USER
-        value: postgres
-      - key: POSTGRES_PASSWORD
-        sync: false
