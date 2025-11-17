@@ -4,29 +4,43 @@ services:
     name: chatwoot
     env: docker
     plan: standard
-    dockerCommand: sh -c "bundle exec rails s -p 3000 -b 0.0.0.0"
     image: chatwoot/chatwoot:latest
+    dockerCommand: sh -c "bundle exec rails db:chatwoot_prepare && bundle exec rails s -p 3000 -b 0.0.0.0"
     envVars:
       - key: NODE_ENV
         value: production
       - key: SECRET_KEY_BASE
         sync: false
       - key: POSTGRES_HOST
-        value: db
+        fromDatabase:
+          name: chatwoot-db
+          property: host
       - key: POSTGRES_USERNAME
-        value: postgres
+        fromDatabase:
+          name: chatwoot-db
+          property: user
       - key: POSTGRES_PASSWORD
-        sync: false
+        fromDatabase:
+          name: chatwoot-db
+          property: password
       - key: POSTGRES_DATABASE
-        value: chatwoot
+        fromDatabase:
+          name: chatwoot-db
+          property: database
       - key: REDIS_URL
-        value: redis://redis:6379
+        fromDatabase:
+          name: redis
+          property: connectionString
       - key: FRONTEND_URL
         value: https://chatwoot-${RENDER_SERVICE_NAME}.onrender.com
       - key: BACKEND_URL
         value: https://chatwoot-${RENDER_SERVICE_NAME}.onrender.com
     healthCheckPath: /health
     autoDeploy: false
+    disk:
+      name: chatwoot-data
+      mountPath: /app/storage
+      sizeGB: 10
 
   # Serviço do n8n
   - type: web
@@ -49,8 +63,30 @@ services:
         value: https
       - key: NODE_ENV
         value: production
+      - key: DB_TYPE
+        value: postgresdb
+      - key: DB_POSTGRESDB_HOST
+        fromDatabase:
+          name: chatwoot-db
+          property: host
+      - key: DB_POSTGRESDB_USER
+        fromDatabase:
+          name: chatwoot-db
+          property: user
+      - key: DB_POSTGRESDB_PASSWORD
+        fromDatabase:
+          name: chatwoot-db
+          property: password
+      - key: DB_POSTGRESDB_DATABASE
+        fromDatabase:
+          name: chatwoot-db
+          property: database
     healthCheckPath: /
     autoDeploy: false
+    disk:
+      name: n8n-data
+      mountPath: /home/node/.n8n
+      sizeGB: 5
 
   # Serviço do Baileys
   - type: web
@@ -67,32 +103,10 @@ services:
       - key: SESSION_PATH
         value: /sessions
     autoDeploy: false
-
-  # Serviço do Rails (parte do Chatwoot)
-  - type: web
-    name: chatwoot-rails
-    env: docker
-    plan: standard
-    image: chatwoot/chatwoot:latest
-    dockerCommand: bin/rails server
-    envVars:
-      - key: RAILS_ENV
-        value: production
-    autoDeploy: false
-
-  # Serviço do Sidekiq (parte do Chatwoot)
-  - type: worker
-    name: chatwoot-sidekiq
-    env: docker
-    plan: standard
-    image: chatwoot/chatwoot:latest
-    dockerCommand: bundle exec sidekiq
-    envVars:
-      - key: RAILS_ENV
-        value: production
-      - key: REDIS_URL
-        value: redis://redis:6379
-    autoDeploy: false
+    disk:
+      name: baileys-sessions
+      mountPath: /sessions
+      sizeGB: 1
 
 databases:
   # Banco de dados PostgreSQL
